@@ -280,6 +280,45 @@
           setTimeout(() => c.close(), 1400);
         } catch (e) {}
       }
+      function LN() {
+        return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) || null;
+      }
+      let NATIVE_PERM = null;
+      function blockNotifId(b) {
+        let h = 0; const str = String(b.id);
+        for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+        return (h % 900000) + 1000;
+      }
+      function syncNativeSchedule() {
+        const ln = LN();
+        if (!ln) return;
+        ln.getPending().then((p) => {
+          const ids = (p.notifications || []).map((n) => n.id);
+          return ids.length ? ln.cancel({ notifications: ids.map((id) => ({ id })) }) : null;
+        }).then(() => {
+          if (!S.notify) return;
+          const notifs = [];
+          S.blocks.forEach((b) => {
+            const parts = b.start.split(":"); const hh = +parts[0] || 0, mm = +parts[1] || 0;
+            notifs.push({
+              id: blockNotifId(b),
+              title: b.title + " " + t("blockStarting"),
+              body: b.start + " – " + b.end,
+              schedule: { on: { weekday: b.weekday + 1, hour: hh, minute: mm }, allowWhileIdle: true },
+              sound: "default",
+            });
+          });
+          const sp = S.sleep.split(":"); const sh = +sp[0] || 0, sm = +sp[1] || 0;
+          notifs.push({
+            id: 999999,
+            title: t("sleepNow"),
+            body: S.sleep,
+            schedule: { on: { hour: sh, minute: sm }, allowWhileIdle: true },
+            sound: "default",
+          });
+          if (notifs.length) return ln.schedule({ notifications: notifs });
+        }).catch(() => {});
+      }
       function notify(title, body) {
         beep();
         const el = document.createElement("div");
@@ -287,14 +326,35 @@
         el.innerHTML = "<b>" + title + "</b><div class='muted'>" + body + "</div>";
         document.body.appendChild(el);
         setTimeout(() => el.remove(), 8000);
-        try {
-          if ("Notification" in window && Notification.permission === "granted") {
-            new Notification(title, { body: body, icon: IMG.chest, vibrate: [200, 100, 200] });
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-          }
-        } catch (e) {}
+        const ln = LN();
+        if (ln) {
+          ln.schedule({
+            notifications: [{
+              id: Math.floor(Math.random() * 100000) + 2000000,
+              title: title, body: body,
+              schedule: { at: new Date(Date.now() + 400) },
+              sound: "default",
+            }],
+          }).catch(() => {});
+        } else {
+          try {
+            if ("Notification" in window && Notification.permission === "granted") {
+              new Notification(title, { body: body, icon: IMG.chest, vibrate: [200, 100, 200] });
+              if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            }
+          } catch (e) {}
+        }
       }
       function askNotif() {
+        const ln = LN();
+        if (ln) {
+          ln.requestPermissions().then((p) => {
+            NATIVE_PERM = p.display === "granted";
+            if (NATIVE_PERM) syncNativeSchedule();
+            render();
+          }).catch(() => { render(); });
+          return;
+        }
         if (!("Notification" in window)) return alert("Bu cihaz bildirişləri dəstəkləmir.");
         Notification.requestPermission().then(() => render());
       }
@@ -440,12 +500,13 @@
       }
 
       function viewSettings() {
-        const perm = ("Notification" in window) ? Notification.permission : "unsupported";
+        const ln0 = LN();
+        const perm = ln0 ? (NATIVE_PERM === true ? "granted" : (NATIVE_PERM === false ? "denied" : "default")) : (("Notification" in window) ? Notification.permission : "unsupported");
         return "<div class='card'><div class='t'>" + t("settings") + "</div><div class='grid'>" +
           "<div><label>" + t("testGoal") + "</label><input type='number' value='" + S.testGoal + "' onchange='S.testGoal=+this.value;save();render()'/></div>" +
           "<div><label>" + t("waterTarget") + "</label><input type='number' value='" + S.waterTarget + "' onchange='S.waterTarget=+this.value;save();render()'/></div>" +
           "<div><label>" + t("glassMl") + "</label><input type='number' value='" + S.glass + "' onchange='S.glass=+this.value;save();render()'/></div>" +
-          "<div><label>" + t("sleepTime") + "</label><input type='time' value='" + S.sleep + "' onchange='S.sleep=this.value;save()'/></div>" +
+          "<div><label>" + t("sleepTime") + "</label><input type='time' value='" + S.sleep + "' onchange='S.sleep=this.value;save();syncNativeSchedule()'/></div>" +
           "</div></div>" +
           "<div class='card'><div class='t'>" + t("notifications") + "</div>" +
           "<div class='muted' style='margin-bottom:10px'>" + (perm === "granted" ? t("notifOn") : t("notifOff")) + "</div>" +
@@ -485,14 +546,23 @@
         S.blocks.push({ id: String(Date.now()), title: title, start: document.getElementById("bs").value,
           end: document.getElementById("be").value, weekday: +document.getElementById("bw").value,
           subject: document.getElementById("bsu").value });
-        save(); render();
+        save(); syncNativeSchedule(); render();
       }
-      function delB(id) { S.blocks = S.blocks.filter((b) => b.id !== id); save(); render(); }
+      function delB(id) { S.blocks = S.blocks.filter((b) => b.id !== id); save(); syncNativeSchedule(); render(); }
       document.getElementById("langBtn").onclick = () => { S.lang = S.lang === "az" ? "en" : "az"; save(); render(); };
       document.getElementById("themeBtn").onclick = () => { S.theme = S.theme === "dark" ? "light" : "dark"; save(); render(); };
       window.addEventListener("load", () => {
         render(); tick();
-        if ("Notification" in window && Notification.permission === "default") setTimeout(askNotif, 1200);
+        const lnLoad = LN();
+        if (lnLoad) {
+          lnLoad.checkPermissions().then((p) => {
+            NATIVE_PERM = p.display === "granted";
+            if (NATIVE_PERM) syncNativeSchedule(); else setTimeout(askNotif, 1200);
+            render();
+          }).catch(() => { setTimeout(askNotif, 1200); });
+        } else if ("Notification" in window && Notification.permission === "default") {
+          setTimeout(askNotif, 1200);
+        }
       });
       render();
     </script>
