@@ -12,6 +12,8 @@ jobs:
           node-version: '20'
       - name: Install npm dependencies
         run: npm install
+      - name: Sync Capacitor web assets
+        run: npx cap sync android
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
