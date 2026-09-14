@@ -147,12 +147,13 @@
         notStarted: ["Başlanmayıb", "Not started"], inProgress: ["Davam edir", "In progress"],
         completed: ["Tamamlandı", "Completed"], testGoal: ["Günlük test hədəfi", "Daily test goal"],
         waterTarget: ["Su hədəfi (ml)", "Water target (ml)"], glassMl: ["Stəkan (ml)", "Glass (ml)"],
-        sleepTime: ["Yatmaq saatı", "Sleep time"], notifications: ["Bildirişlər", "Notifications"],
+        sleepTime: ["Yatmaq saatı", "Sleep time"], wakeTime: ["Oyanma saatı", "Wake-up time"], notifications: ["Bildirişlər", "Notifications"],
         allowNotif: ["Telefonda bildirişlərə icazə ver", "Allow notifications on this device"],
         notifOn: ["Bildirişlər aktivdir ✓", "Notifications enabled ✓"],
         notifOff: ["Bildirişlərə icazə verilməyib", "Notifications not allowed"],
         drinkNow: ["Su içmək vaxtıdır", "Time to drink water"],
         sleepNow: ["Yatmaq vaxtıdır", "Time to sleep"],
+        wakeUp: ["Oyanma vaxtıdır! ⏰", "Time to wake up! ⏰"],
         workoutToday: ["Bu gün idman günüdür", "Today is a workout day"],
         blockStarting: ["başlamaq üzrədir", "is starting soon"],
         reset: ["Məlumatları sıfırla", "Reset all data"],
@@ -255,7 +256,7 @@
       const KEY = "abituriyent-panel-v1";
       const defaults = {
         lang: "az", theme: "dark", testGoal: 250, waterTarget: 2000, glass: 330,
-        sleep: "23:00", workoutDays: [1, 3, 5], notify: true,
+        sleep: "23:00", wake: "07:00", workoutDays: [1, 3, 5], notify: true,
         tests: {}, water: {}, workouts: {}, blocks: [],
       };
       let S = Object.assign({}, defaults, JSON.parse(localStorage.getItem(KEY) || "{}"));
@@ -284,6 +285,21 @@
         return (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) || null;
       }
       let NATIVE_PERM = null;
+      let wakeChannelReady = false;
+      function ensureWakeChannel() {
+        const ln = LN();
+        if (!ln || !ln.createChannel || wakeChannelReady) return;
+        wakeChannelReady = true;
+        ln.createChannel({
+          id: "wake_alarm",
+          name: "Oyanma zəngi",
+          description: "Sehər oyanma bildirişi",
+          importance: 5,
+          visibility: 1,
+          sound: "default",
+          vibration: true,
+        }).catch(() => {});
+      }
       function blockNotifId(b) {
         let h = 0; const str = String(b.id);
         for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
@@ -314,6 +330,16 @@
             title: t("sleepNow"),
             body: S.sleep,
             schedule: { on: { hour: sh, minute: sm }, allowWhileIdle: true },
+            sound: "default",
+          });
+          const wp = (S.wake || "07:00").split(":"); const wh = +wp[0] || 7, wm = +wp[1] || 0;
+          ensureWakeChannel();
+          notifs.push({
+            id: 999998,
+            title: t("wakeUp"),
+            body: S.wake || "07:00",
+            schedule: { on: { hour: wh, minute: wm }, allowWhileIdle: true },
+            channelId: "wake_alarm",
             sound: "default",
           });
           if (notifs.length) return ln.schedule({ notifications: notifs });
@@ -507,6 +533,7 @@
           "<div><label>" + t("waterTarget") + "</label><input type='number' value='" + S.waterTarget + "' onchange='S.waterTarget=+this.value;save();render()'/></div>" +
           "<div><label>" + t("glassMl") + "</label><input type='number' value='" + S.glass + "' onchange='S.glass=+this.value;save();render()'/></div>" +
           "<div><label>" + t("sleepTime") + "</label><input type='time' value='" + S.sleep + "' onchange='S.sleep=this.value;save();syncNativeSchedule()'/></div>" +
+          "<div><label>" + t("wakeTime") + "</label><input type='time' value='" + (S.wake || "07:00") + "' onchange='S.wake=this.value;save();syncNativeSchedule()'/></div>" +
           "</div></div>" +
           "<div class='card'><div class='t'>" + t("notifications") + "</div>" +
           "<div class='muted' style='margin-bottom:10px'>" + (perm === "granted" ? t("notifOn") : t("notifOff")) + "</div>" +
