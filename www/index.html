@@ -322,6 +322,7 @@
               body: b.start + " – " + b.end,
               schedule: { on: { weekday: b.weekday + 1, hour: hh, minute: mm }, allowWhileIdle: true },
               sound: "default",
+              smallIcon: "ic_stat_notify",
             });
           });
           const sp = S.sleep.split(":"); const sh = +sp[0] || 0, sm = +sp[1] || 0;
@@ -331,6 +332,7 @@
             body: S.sleep,
             schedule: { on: { hour: sh, minute: sm }, allowWhileIdle: true },
             sound: "default",
+            smallIcon: "ic_stat_notify",
           });
           const wp = (S.wake || "07:00").split(":"); const wh = +wp[0] || 7, wm = +wp[1] || 0;
           ensureWakeChannel();
@@ -341,6 +343,7 @@
             schedule: { on: { hour: wh, minute: wm }, allowWhileIdle: true },
             channelId: "wake_alarm",
             sound: "default",
+            smallIcon: "ic_stat_notify",
           });
           if (notifs.length) return ln.schedule({ notifications: notifs });
         }).catch(() => {});
@@ -360,6 +363,7 @@
               title: title, body: body,
               schedule: { at: new Date(Date.now() + 400) },
               sound: "default",
+              smallIcon: "ic_stat_notify",
             }],
           }).catch(() => {});
         } else {
