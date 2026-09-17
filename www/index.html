@@ -88,6 +88,24 @@
       .block { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
       h4 { margin: 14px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--primary); }
       ul, ol { margin: 4px 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+      .greet-row { display: flex; align-items: center; gap: 12px; margin: 4px 4px 16px; }
+      .greet-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--card2);
+        display: grid; place-items: center; font-size: 20px; flex-shrink: 0; }
+      .greet-title { font-family: Sora; font-weight: 800; font-size: 18px; }
+      .ring-wrap { position: relative; width: 72px; height: 72px; flex-shrink: 0; }
+      .ring-wrap svg { transform: rotate(-90deg); }
+      .ring-label { position: absolute; inset: 0; display: grid; place-items: center;
+        font-family: Sora; font-weight: 800; font-size: 13px; }
+      .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+      .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+        padding: 14px; box-shadow: 0 6px 20px rgba(20, 40, 30, 0.06); }
+      .stat-icon { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+        font-size: 16px; margin-bottom: 10px; }
+      .ic-blue { background: rgba(56, 189, 248, .18); }
+      .ic-orange { background: rgba(232, 178, 58, .22); }
+      .ic-red { background: rgba(239, 68, 68, .15); }
+      .ic-purple { background: rgba(139, 92, 246, .18); }
+      .stat-val { font-family: Sora; font-weight: 800; font-size: 16px; }
       .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: 96px; z-index: 50;
         background: var(--card2); border: 1px solid var(--border); border-radius: 14px; padding: 12px 16px; max-width: 90%; }
     </style>
@@ -127,6 +145,8 @@
 
       const T = {
         tagline: ["11-ci sinif imtahan rejimi", "11th grade exam mode"],
+        greetTitle: ["Salam, Çempion! 📚", "Hi, Champion! 📚"],
+        nextLabel: ["Növbəti", "Next"], workoutLabel: ["İdman", "Workout"], sleepLabel: ["Yuxu", "Sleep"],
         today: ["Bu gün", "Today"], tests: ["Testlər", "Tests"], schedule: ["Cədvəl", "Schedule"],
         health: ["Sağlamlıq", "Health"], settings: ["Tənzimləmə", "Settings"],
         todayTests: ["Bugünkü testlər", "Today's tests"], water: ["Su", "Water"],
@@ -420,22 +440,38 @@
         const now = new Date().getHours() * 60 + new Date().getMinutes();
         const next = blocks.find((b) => mins(b.end) > now);
         const st = S.workouts[d] || "not_started";
+        const pct = Math.max(0, Math.min(1, n / S.testGoal));
+        const CIRC = 188.5;
+        const ring = "<div class='ring-wrap'><svg width='72' height='72'>" +
+          "<circle cx='36' cy='36' r='30' fill='none' stroke='var(--card2)' stroke-width='8'/>" +
+          "<circle cx='36' cy='36' r='30' fill='none' stroke='var(--primary)' stroke-width='8' stroke-linecap='round' " +
+          "stroke-dasharray='" + CIRC + "' stroke-dashoffset='" + (CIRC - pct * CIRC) + "'/></svg>" +
+          "<div class='ring-label'>" + Math.round(pct * 100) + "%</div></div>";
         return (
-          "<div class='card'><div class='t'>" + t("todayTests") + "</div><div class='big'>" + n +
-          " <span class='muted' style='font-size:14px'>/ " + S.testGoal + "</span></div>" +
-          bar((n / S.testGoal) * 100, "var(--primary)") +
+          "<div class='greet-row'><div class='greet-avatar'>🎓</div>" +
+          "<div class='greet-title'>" + t("greetTitle") + "</div></div>" +
+          "<div class='card'><div class='row' style='justify-content:space-between;align-items:flex-start'>" +
+          "<div><div class='t'>" + t("todayTests") + "</div><div class='big'>" + n +
+          " <span class='muted' style='font-size:14px'>/ " + S.testGoal + "</span></div></div>" + ring + "</div>" +
+          bar(pct * 100, "var(--primary)") +
           "<div class='chips' style='margin-top:12px'>" +
           [10, 25, 50].map((v) => "<button class='chip' onclick='addT(\"math\"," + v + ")'>+" + v + "</button>").join("") +
           "</div></div>" +
-          "<div class='card'><div class='t'>" + t("water") + "</div><div class='big'>" + (ml / 1000).toFixed(2) +
-          " L <span class='muted' style='font-size:14px'>/ " + (S.waterTarget / 1000).toFixed(1) + " L</span></div>" +
+          "<div class='stat-grid'>" +
+          "<div class='stat-card'><div class='stat-icon ic-blue'>💧</div><div class='t' style='margin-bottom:4px'>" + t("water") + "</div>" +
+          "<div class='stat-val'>" + ml + " ml</div><div class='muted' style='font-size:11px'>" + t("waterTarget") + ": " + S.waterTarget + " ml</div></div>" +
+          "<div class='stat-card'><div class='stat-icon ic-orange'>⏰</div><div class='t' style='margin-bottom:4px'>" + t("nextLabel") + "</div>" +
+          (next ? "<div class='stat-val' style='font-size:14px'>" + esc(next.title) + "</div><div class='muted' style='font-size:11px'>" + next.start + "–" + next.end + "</div>"
+                : "<div class='muted' style='font-size:12px'>" + t("nothingToday") + "</div>") + "</div>" +
+          "<div class='stat-card'><div class='stat-icon ic-red'>🏋️</div><div class='t' style='margin-bottom:4px'>" + t("workoutLabel") + "</div>" +
+          "<div class='stat-val' style='font-size:14px'>" + t(st === "completed" ? "completed" : st === "in_progress" ? "inProgress" : "notStarted") + "</div>" +
+          "<button class='btn' style='margin-top:8px;padding:4px 9px' onclick='cycleW(\"" + d + "\")'>→</button></div>" +
+          "<div class='stat-card'><div class='stat-icon ic-purple'>🌙</div><div class='t' style='margin-bottom:4px'>" + t("sleepLabel") + "</div>" +
+          "<div class='stat-val'>" + S.sleep + "</div><div class='muted' style='font-size:11px'>" + t("notifications") + ": " + (S.notify ? "✓" : "–") + "</div></div>" +
+          "</div>" +
+          "<div class='card' style='margin-top:12px'><div class='t'>" + t("water") + "</div>" +
           bar((ml / S.waterTarget) * 100, "var(--accent)") +
-          "<button class='btn primary' style='margin-top:12px' onclick='addW()'>" + t("addGlass") + "</button></div>" +
-          "<div class='card'><div class='t'>" + t("nextTask") + "</div>" +
-          (next ? "<b>" + esc(next.title) + "</b><div class='muted'>" + next.start + " – " + next.end + "</div>"
-                : "<div class='muted'>" + t("nothingToday") + "</div>") + "</div>" +
-          "<div class='card'><div class='t'>" + t("workout") + "</div><b>" + t(st === "completed" ? "completed" : st === "in_progress" ? "inProgress" : "notStarted") +
-          "</b><br/><button class='btn' style='margin-top:10px' onclick='cycleW(\"" + d + "\")'>→</button></div>"
+          "<button class='btn primary' style='margin-top:12px' onclick='addW()'>" + t("addGlass") + "</button></div>"
         );
       }
 
