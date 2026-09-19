@@ -311,12 +311,12 @@
         if (!ln || !ln.createChannel || wakeChannelReady) return;
         wakeChannelReady = true;
         ln.createChannel({
-          id: "wake_alarm",
+          id: "wake_alarm_v2",
           name: "Oyanma zəngi",
           description: "Sehər oyanma bildirişi",
           importance: 5,
           visibility: 1,
-          sound: "default",
+          sound: "alarm_sound.wav",
           vibration: true,
         }).catch(() => {});
       }
@@ -361,8 +361,8 @@
             title: t("wakeUp"),
             body: S.wake || "07:00",
             schedule: { on: { hour: wh, minute: wm }, allowWhileIdle: true },
-            channelId: "wake_alarm",
-            sound: "default",
+            channelId: "wake_alarm_v2",
+            sound: "alarm_sound.wav",
             smallIcon: "ic_stat_notify",
           });
           if (notifs.length) return ln.schedule({ notifications: notifs });
